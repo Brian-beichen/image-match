@@ -76,7 +76,7 @@ setup(
         'Natural Language :: English',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.9',
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX :: Linux',
         'Topic :: Multimedia :: Graphics',
@@ -88,7 +88,7 @@ setup(
         'pytest-runner',
     ],
     install_requires=[
-        'scikit-image>=0.14',
+        'scikit-image>=0.18',
         'elasticsearch>=7.0.0,<8.0.0',
         'six>=1.11.0',
     ],
