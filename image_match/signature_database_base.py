@@ -268,7 +268,8 @@ class SignatureDatabaseBase(object):
             rotations = [lambda x: x, np.rot90, lambda x: np.rot90(x, 2), lambda x: np.rot90(x, 3)]
             orientations = list(product(inversions, rotations, mirrors))
         else:
-            orientations = [lambda x: x]
+            # orientations = [(lambda x: x, lambda x: x, lambda x: x)]  # 单一变换情况下仍使用三元组
+            orientations = [(lambda x: x.copy(), lambda x: x.copy(), lambda x: x.copy())]
             print("Orientations initialized with size:", len(orientations))
 
         # try for every possible combination of transformations; if all_orientations=False,
@@ -277,7 +278,7 @@ class SignatureDatabaseBase(object):
 
         for inversion, rotation, mirror in orientations:
             try:
-                transformed_img = mirror(rotation(inversion(img)))
+                transformed_img = mirror(rotation(inversion(img))).copy()  # 强制复制为独立数组
                 print(f"Transformed image shape: {transformed_img.shape}")
 
                 # Ensure transformed_img is in the correct format (3 channels if needed)
