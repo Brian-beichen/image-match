@@ -419,12 +419,21 @@ def get_words(array, k, N):
     words = np.zeros((N, k)).astype('int8')
 
     for i, pos in enumerate(word_positions):
+        # if i==62:
+        #     print("debug")
         if pos + k <= array.shape[0]:
             words[i] = array[pos:pos+k]
         else:
-            temp = array[pos:].copy()
-            temp.resize(k)
-            words[i] = temp
+            # temp = array[pos:].copy()
+            try:
+                temp = np.ascontiguousarray(array[pos:])
+                temp_resized = np.zeros((k,), dtype=temp.dtype)  # 创建新数组
+                temp_resized[:temp.shape[0]] = temp  # 填充数据
+                temp = temp_resized  # 替换为新的独立数组
+                words[i] = temp
+            except Exception as e:
+                print("error:%s"%e)
+
 
     return words
 
