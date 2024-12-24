@@ -205,6 +205,9 @@ class SignatureDatabaseBase(object):
             metadata (Optional): any other information you want to include, can be nested (default None)
 
         """
+        if img is not None:
+            if len(img.shape) == 2:  # If grayscale
+                img = np.stack([img] * 3, axis=-1)  # Convert to RGB
         rec = make_record(path, self.gis, self.k, self.N, img=img, bytestream=bytestream, metadata=metadata)
         self.insert_single_record(rec, refresh_after=refresh_after)
 
@@ -241,39 +244,52 @@ class SignatureDatabaseBase(object):
         """
         img = self.gis.preprocess_image(path, bytestream)
 
+        # if all_orientations:
+        #     # initialize an iterator of composed transformations
+        #     inversions = [lambda x: x, lambda x: -x]
+        #
+        #     mirrors = [lambda x: x, np.fliplr]
+        #
+        #     # an ugly solution for function composition
+        #     rotations = [lambda x: x,
+        #                  np.rot90,
+        #                  lambda x: np.rot90(x, 2),
+        #                  lambda x: np.rot90(x, 3)]
+        #
+        #     # cartesian product of all possible orientations
+        #     orientations = product(inversions, rotations, mirrors)
+        #
+        # else:
+        #     # otherwise just use the identity transformation
+        #     orientations = [lambda x: x]
         if all_orientations:
-            # initialize an iterator of composed transformations
             inversions = [lambda x: x, lambda x: -x]
-
             mirrors = [lambda x: x, np.fliplr]
-
-            # an ugly solution for function composition
-            rotations = [lambda x: x,
-                         np.rot90,
-                         lambda x: np.rot90(x, 2),
-                         lambda x: np.rot90(x, 3)]
-
-            # cartesian product of all possible orientations
-            orientations = product(inversions, rotations, mirrors)
-
+            rotations = [lambda x: x, np.rot90, lambda x: np.rot90(x, 2), lambda x: np.rot90(x, 3)]
+            orientations = list(product(inversions, rotations, mirrors))
         else:
-            # otherwise just use the identity transformation
             orientations = [lambda x: x]
+            print("Orientations initialized with size:", len(orientations))
 
         # try for every possible combination of transformations; if all_orientations=False,
         # this will only take one iteration
         result = []
 
-        orientations = set(np.ravel(list(orientations)))
-        for transform in orientations:
-            # compose all functions and apply on signature
-            transformed_img = transform(img)
+        for inversion, rotation, mirror in orientations:
+            try:
+                transformed_img = mirror(rotation(inversion(img)))
+                print(f"Transformed image shape: {transformed_img.shape}")
 
-            # generate the signature
-            transformed_record = make_record(transformed_img, self.gis, self.k, self.N)
+                # Ensure transformed_img is in the correct format (3 channels if needed)
+                if len(transformed_img.shape) == 2:  # If grayscale
+                    transformed_img = np.stack([transformed_img] * 3, axis=-1)  # Convert to RGB
 
-            l = self.search_single_record(transformed_record, pre_filter=pre_filter)
-            result.extend(l)
+                transformed_record = make_record(path, self.gis, self.k, self.N, img=transformed_img)
+                print(f"Generated record keys: {list(transformed_record.keys())}")
+                l = self.search_single_record(transformed_record, pre_filter=pre_filter)
+                result.extend(l)
+            except Exception as e:
+                print(f"Error during transform or search: {e}")
 
         ids = set()
         unique = []
@@ -343,6 +359,9 @@ def make_record(path, gis, k, N, img=None, bytestream=False, metadata=None):
     record = dict()
     record['path'] = path
     if img is not None:
+        # Ensure img is in the correct format
+        if len(img.shape) == 2:  # If grayscale
+            img = np.stack([img] * 3, axis=-1)  # Convert to RGB
         signature = gis.generate_signature(img, bytestream=bytestream)
     else:
         signature = gis.generate_signature(path)

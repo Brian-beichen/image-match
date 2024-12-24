@@ -11,6 +11,7 @@ from io import BytesIO
 import numpy as np
 import xml.etree
 import xml.etree.ElementTree
+from imageio import imread
 
 
 class CorruptImageError(RuntimeError):
@@ -235,26 +236,42 @@ class ImageSignature(object):
                     raise CorruptImageError()
             img = img.convert('RGB')
             return rgb2gray(np.asarray(img, dtype=np.uint8))
-        elif type(image_or_path) in string_types or \
-             type(image_or_path) is text_type:
-            return imread(image_or_path, as_gray=True)
-        elif type(image_or_path) is bytes:
-            try:
-                img = Image.open(image_or_path)
-                arr = np.array(img.convert('RGB'))
-            except IOError:
-                # try again due to PIL weirdness
-                return imread(image_or_path, as_gray=True)
-            if handle_mpo:
-                # take the first images from the MPO
-                if arr.shape == (2,) and isinstance(arr[1].tolist(), MpoImageFile):
-                    return rgb2gray(arr[0])
-                else:
-                    return rgb2gray(arr)
+        elif isinstance(image_or_path, (str, bytes)):
+            img = imread(image_or_path)  # Replace skimage.io.imread with imageio.imread
+            if len(img.shape) == 3 and img.shape[2] == 3:  # RGB image
+                return rgb2gray(img)
+            elif len(img.shape) == 2:  # Already grayscale
+                return img
             else:
-                return rgb2gray(arr)
-        elif type(image_or_path) is np.ndarray:
-            return rgb2gray(image_or_path)
+                raise ValueError(f"Unsupported image shape: {img.shape}")
+
+        elif isinstance(image_or_path, np.ndarray):
+            if len(image_or_path.shape) == 3 and image_or_path.shape[2] == 3:  # RGB image
+                return rgb2gray(image_or_path)
+            elif len(image_or_path.shape) == 2:  # Already grayscale
+                return image_or_path
+            else:
+                raise ValueError(f"Unsupported image shape: {image_or_path.shape}")
+        # elif type(image_or_path) in string_types or \
+        #      type(image_or_path) is text_type:
+        #     return imread(image_or_path, as_gray=True)
+        # elif type(image_or_path) is bytes:
+        #     try:
+        #         img = Image.open(image_or_path)
+        #         arr = np.array(img.convert('RGB'))
+        #     except IOError:
+        #         # try again due to PIL weirdness
+        #         return imread(image_or_path, as_gray=True)
+        #     if handle_mpo:
+        #         # take the first images from the MPO
+        #         if arr.shape == (2,) and isinstance(arr[1].tolist(), MpoImageFile):
+        #             return rgb2gray(arr[0])
+        #         else:
+        #             return rgb2gray(arr)
+        #     else:
+        #         return rgb2gray(arr)
+        # elif type(image_or_path) is np.ndarray:
+        #     return rgb2gray(image_or_path)
         else:
             raise TypeError('Path or image required.')
 
